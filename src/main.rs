@@ -9,73 +9,60 @@ fn chec_is_sign(symbol:char) -> bool {
 }
 
 // считает выражения с 1 действием
-fn arithmetic(math:String) -> Result<String, ()> { 
-    fn split_math(math:String) -> Result<(i32, i32, char), ()> {
-        let num1: i32;
-        let num2: i32;
-        let mut operator_pos: usize = 0;
-        let s_m: Vec<char> = math.chars().collect();
- 
-        for sinx in 0..s_m.len() {
-            if chec_is_sign(s_m[sinx]) && sinx > 0 && !chec_is_sign(s_m[sinx - 1]) {
-                operator_pos = sinx;
-                break;
-            }
-        }
-        
-        let mut buffer: String = String::new();
-        for i in 0..operator_pos { buffer += &s_m[i].to_string(); }
-        
-        match buffer.parse::<i32>() {
-            Ok(num) => num1 = num,
-            Err(err) => { 
-                eprintln!("{}", err);
-                return Err(());
-            }
-        }
-        
-        buffer = String::new();
-        for i in operator_pos+1..s_m.len() { buffer += &s_m[i].to_string(); }
+fn arithmetic(math: &str) -> Result<String, ()> { 
+    //println!("{}", math);
 
-        match buffer.parse::<i32>() {
-            Ok(num) => num2 = num,
-            Err(err) => { 
-                eprintln!("{}", err);
-                return Err(());
-            }
-        }
-        
-        return Ok((num1, num2, s_m[operator_pos]));
-    }
-
-    match math.parse::<i32>() {
+    match math.parse::<f32>() {
         Ok(integ) => return Ok(integ.to_string()),
         Err(_) => { }
     }    
 
-    let num1:i32;
-    let num2:i32;
-    let operator:char;
+    let num1: f32;
+    let num2: f32;
+    let mut operator_pos: usize = 0;
+    let s_m: Vec<char> = math.chars().collect();
+ 
+    for sinx in 0..s_m.len() {
+        if chec_is_sign(s_m[sinx]) && sinx > 0 && !chec_is_sign(s_m[sinx - 1]) {
+            operator_pos = sinx;
+            break;
+        }
+    }
     
-    match split_math(math.clone()) {
-        Ok((_num1, _num2, _operator)) => {
-            num1 = _num1;
-            num2 = _num2;
-            operator = _operator;
-        },
-        Err(_) => return Err(())
+    let b_size = s_m.len();
+    let mut buffer: String = String::with_capacity(b_size);
+    for i in 0..operator_pos { buffer += &s_m[i].to_string(); }
+        
+    match buffer.parse::<f32>() {
+        Ok(num) => num1 = num,
+        Err(err) => { 
+            eprintln!("{}", err);
+            return Err(());
+        }
     }
         
-    if operator == '+' {
+    buffer = String::with_capacity(b_size);
+    for i in operator_pos+1..b_size { buffer += &s_m[i].to_string(); }
+
+    match buffer.parse::<f32>() {
+        Ok(num) => num2 = num,
+        Err(err) => { 
+            eprintln!("{}", err);
+            return Err(());
+        }
+    }
+        
+        
+    if s_m[operator_pos] == '+' {
         return Ok((num1 + num2).to_string());
 
-    } else if operator == '-' {
+    } else if s_m[operator_pos] == '-' {
         return Ok((num1 - num2).to_string());
 
-    } else if operator == '*' {
+    } else if s_m[operator_pos] == '*' {
         return Ok((num1 * num2).to_string());
 
-    }  else if operator == '/' {
+    }  else if s_m[operator_pos] == '/' {
         return Ok((num1 / num2).to_string());
 
     } else {
@@ -85,12 +72,15 @@ fn arithmetic(math:String) -> Result<String, ()> {
 }
 
 // считвает сложные выражения с множеством действий
-fn calc(mut aric:String) -> Result<i32, ()> { // проблема с отрицаельными числами тут !!!
-    fn rasbor(aric:String, operation:char) -> Result<String, ()>{
+fn calc(mut aric:String) -> Result<f32, ()> { 
+    let mut m_a: Vec<char> = aric.chars().collect();
+    let mut buffer: String = String::with_capacity(aric.len());
+
+    fn rasbor(aric:String, operation:char, buffer: &mut String, m_a: &mut Vec<char>) -> Result<String, ()> {
         let mut pos_pp: usize = 0;
         let mut pos_oper: usize = 0;
-        let m_a: Vec<char> = aric.chars().collect();
-        let mut buffer: String = String::new();
+
+        *m_a = aric.chars().collect();
 
         for inx in 0..m_a.len() {
             if m_a[inx] == operation {
@@ -104,19 +94,19 @@ fn calc(mut aric:String) -> Result<i32, ()> { // проблема с отриц�
         let mut inx:usize;
         for inx in pos_pp..pos_oper {
             if chec_is_sign(m_a[inx]) && inx > 0 && !chec_is_sign(m_a[inx - 1]) { break; }
-            buffer += &m_a[inx].to_string();
+            *buffer += &m_a[inx].to_string();
         }
 
         inx = pos_oper.into();
         while inx < m_a.len() {
             if chec_is_sign(m_a[inx]) && inx != pos_oper && inx > 0 && !chec_is_sign(m_a[inx - 1]) { break; }
-            buffer += &m_a[inx].to_string();
+            *buffer += &m_a[inx].to_string();
 
-            inx +=1;
+            inx += 1;
         }
 
         let num: String;
-        match arithmetic(buffer.clone()) {
+        match arithmetic(buffer) {
             Ok(result) => {
                 num = result;
             },
@@ -125,59 +115,62 @@ fn calc(mut aric:String) -> Result<i32, ()> { // проблема с отриц�
                 return Err(());
             }
         }
-        
-        return Ok(str::replace(&aric, &mem::take(&mut buffer), &num));
+
+        return Ok(str::replace(&aric, &mem::take(&mut *buffer), &num));
     }
 
     if !(aric.contains("+") || aric.contains("-") || aric.contains("/") || aric.contains("*")){
-        match aric.parse::<i32>() {
+        match aric.parse::<f32>() {
             Ok(integ) => return Ok(integ),
             Err(error) => {
-                println!("error({}) operation in {}", error, aric);
+                eprintln!("error({}) operation in {}", error, aric);
                 return Err(());
             }
         }
     }
-   //как будто проблема где то тут
+
     while aric.contains("+") || aric.contains("-") || aric.contains("/") || aric.contains("*") {
-        match aric.parse::<i32>() { 
+        match aric.parse::<f32>() { 
             Ok(integ) => return Ok(integ),
             Err(_) => { }
         }    
 
         if aric.contains("*") || aric.contains("/") {
-            if aric.contains("*"){      
-                match rasbor(aric, '*') {
-                    Ok(relust) => aric = relust,
-                    Err(_) => return Err(())
-                }
+            let mut operation: char = '*';
+
+            for i in 0..m_a.len() {
+                if m_a[i] == '/' || (m_a[i] == '*' && !chec_is_sign(m_a[i + 1])) {
+                    operation = m_a[i];
+                    break;
+                }      
             }
-            if aric.contains("/"){ 
-                match rasbor(aric, '/') {
-                    Ok(relust) => aric = relust,
-                    Err(_) => return Err(())
-                }
+            
+            match rasbor(aric, operation, &mut buffer, &mut m_a) {
+                Ok(relust) => aric = relust,
+                Err(_) => return Err(())
             }
+
         } else if aric.contains("+") || aric.contains("-") {
-            if aric.contains("+"){ 
-                match rasbor(aric, '+') {
-                    Ok(relust) => aric = relust,
-                    Err(_) => return Err(())
-                }
+            let mut operation: char = '+';
+
+            for i in 0..m_a.len() {
+                if m_a[i] == '+' || (m_a[i] == '-' && !chec_is_sign(m_a[i + 1])) {
+                    operation = m_a[i];
+                    break;
+                }      
             }
-            if aric.contains("-"){ 
-                match rasbor(aric, '-') {
-                    Ok(relust) => aric = relust,
-                    Err(_) => return Err(())
-                }
+            
+            match rasbor(aric, operation, &mut buffer, &mut m_a) {
+                Ok(relust) => aric = relust,
+                Err(_) => return Err(())
             }
         }
     } 
 
-    match aric.parse::<i32>() {
+    match aric.parse::<f32>() {
         Ok(integ) => return Ok(integ),
         Err(error) => {
-            println!("error({}) operation in {}", error, aric);
+            eprintln!("error({}) operation in {}", error, aric);
             return Err(());
         }
     }     
@@ -206,8 +199,7 @@ fn parser(text:String) -> String {
             }
         }
     } else { buffer = text; }
-    
-    
+     
     return calc(mem::take(&mut buffer)).unwrap().to_string();
 }
 
